@@ -49,9 +49,7 @@ class MessagesParser(BaseParser):
         try:
             async for message in self.client.iter_messages(
                 chat,
-                offset_date=end_date,
-                min_id=0,
-                reverse=True
+                limit=None
             ):
                 if self.interrupted:
                     break
@@ -104,17 +102,13 @@ class MessagesParser(BaseParser):
     async def _estimate_total_messages(self, chat, start_date, end_date) -> int:
         try:
             count = 0
-            async for message in self.client.iter_messages(
-                chat,
-                offset_date=end_date,
-                reverse=True
-            ):
-                if message.date.replace(tzinfo=None) < start_date:
+            async for message in self.client.iter_messages(chat, limit=1000):
+                message_date = message.date.replace(tzinfo=None)
+                if message_date < start_date:
                     break
-                count += 1
-                if count >= 10000:  # Limit estimation to prevent long wait
-                    break
+                if message_date <= end_date:
+                    count += 1
 
-            return count
+            return max(count, 10)  # Return at least 10 for progress bar
         except Exception:
             return 100
